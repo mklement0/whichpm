@@ -1,0 +1,25 @@
+#!/usr/bin/env bash
+
+# ---
+# IMPORTANT: Use the following statement at the TOP OF EVERY TEST SCRIPT
+#            to ensure that this package's 'bin/' subfolder is added to the path so that
+#            this package's CLIs can be invoked by their mere filename in the rest
+#            of the script.
+# ---
+PATH=${PWD%%/test*}/bin:$PATH
+
+# Helper function for error reporting.
+die() { (( $# > 0 )) && echo "ERROR: $*" >&2; exit 1; }
+
+# Get verbose info:  name<tab>version<tab>core-status<tab>path
+out=$(whichpm -v Data::Dumper) || die
+
+# Split result into tokens.
+IFS=$'\t' read -ra tokens <<<"$out"
+
+# Make sure the 2nd token looks like a version number.
+verToken=${tokens[1]}
+[[ $verToken =~ ^v?[[:digit:]]+\. ]] || die "Expected version number as 2nd output field, got '$verToken'."
+
+exit 0
+

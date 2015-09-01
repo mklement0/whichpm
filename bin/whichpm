@@ -1,0 +1,822 @@
+#!/usr/bin/env perl
+
+# Require the most recent among the min. version required among all required modules.
+# Note that we use a float rather than a v-string, because 5.5- versions don't recognize v-strings, and their use would result in a confusing error message.
+# AVOID USE OF // (logical defined-or) IN THIS SCRIPT, BECAUSE IT REQUIRES 5.10+; /r, in regexes, because it requires 5.14+
+
+use 5.00405;  # File::Spec's min. version
+use utf8;
+use open ':locale';
+
+use strict;
+use warnings;
+
+use File::Basename;
+use File::Spec;
+use Getopt::Long qw/:config bundling no_ignore_case no_auto_abbrev gnu_compat permute/;
+# Blindly try to load Module::CoreList, and ignore failure (on versions < 5.8.9)
+eval "use Module::CoreList";  # requires v5.8.9+
+
+my $kTHIS_NAME = basename $0;
+my $kTHIS_HOMEPAGE='https://github.com/mklement0/whichpm';
+my $kVERSION = 'v0.1.0'; # This line is automatically updated by `make version VER=<newVer>`
+# Convert $kVERSION into a backward-compatible float stored in `our $VERSION`.
+our $VERSION = sprintf '%s.%03s%03s', split(/\./, substr $kVERSION, 1);
+
+BEGIN {
+  # Debugging support: define p() for printing values diagnostically.
+  use Data::Dumper;
+  $Data::Dumper::Terse = 1;
+  sub p { print Dumper(@_); };
+  sub mywarn { return if our $quiet; my $msg = $_[0]; chomp $msg; printf STDERR "$kTHIS_NAME: WARNING: %s\n", $msg; } 
+  sub mydie { my $msg = $_[0]; chomp $msg; printf STDERR "$kTHIS_NAME: ERROR: %s\n", $msg; exit 2; } 
+  sub mydiesyntax { my $msg = defined $_[0] ? $_[0] : ''; chomp $msg; printf STDERR "$kTHIS_NAME: ARGUMENT ERROR: %s\nUse -h for help.\n", $msg ? $msg : 'See above.'; exit 2; } 
+}
+
+# forward declarations
+sub getruecasepath;
+sub openurl;
+sub globex;
+sub relpath2modname;
+sub modname2relpath;
+sub modname2paths;
+sub truecasemodname;
+sub extract_package_name;
+sub unique;
+
+# Deal with standard options.
+if (@ARGV) {
+  if ($ARGV[0] eq '--version') { 
+    print "${kTHIS_NAME} ${kVERSION}\n"; exit 0; 
+  }
+  elsif ($ARGV[0] eq '--home') { openurl $kTHIS_HOMEPAGE; exit $? >> 8; }
+  elsif ($ARGV[0] =~ '-h|--help') { 
+    # Extract the contents of the SYNOPSIS chapter from the embedded Markdown-formatted man-page document.
+    my $txt = join '', <main::DATA>; close main::DATA;
+    $txt = (split /\n[^ \n]/, (split /SYNOPSIS\n/s, $txt)[1])[0];
+    $txt =~ tr/`//d;  # remove ` chars.
+    print STDOUT $txt;
+    exit 0;
+  }
+  elsif ($ARGV[0] =~ m'^--(man|man-embedded)$') {
+    my $useembedded = $1 eq 'man-embedded'; # private option, used by `make update-doc`
+    my $nullSink = File::Spec->devnull();
+    # Try to open the regularly installed man page first.
+    if ($useembedded or system("man 1 $kTHIS_NAME 2>$nullSink") != 0) {
+      # Fall back to printing the embedded Markdown man-page document.
+      # Determine the pager to use. Note that the pager simply passes output
+      # through if stdout is not connected to a terminal.
+      my $pager = 'more';
+      `which less 2>$nullSink`; $pager = 'less' if $? == 0;
+      # Extract the Markdown man-page document and pipe it to the pager.
+      open (my $outPipe, "| $pager");
+      print $outPipe <main::DATA>;
+      close main::DATA;
+      close $outPipe;
+    }
+    exit $? >> 8;
+  };
+}
+
+# Parse options.
+my $verbose;
+our $quiet; # package-level flag that is queried in mywarn()
+my $openineditor;
+my $all;
+my @modules;
+my $modules_are_paths;
+my %reversed_inc;
+GetOptions(
+  "all|a"  => \$all,
+  "verbose|v"  => \$verbose,
+  "quiet|q"  => \$quiet,
+  "editor|edit|e"  => \$openineditor
+) or mydiesyntax;
+
+
+@modules = @ARGV;
+if (! @modules) {   # no module names specified
+  # Accept -a to list ALL installed modules.
+  unless($all) { mydiesyntax "Please specify either at least one module name or -a."; }
+  # It makes no sense to open potentially thousands of modules in an editor.
+  unless(not $openineditor) { mydiesyntax "Incompatible options specified.\n"; }
+  $modules_are_paths = 1;
+  @modules = globex '{' . (join ',', @INC) . '}/**/*.pm', { follow => 1 }  or mydie "Finding all modules in the search path failed.";
+  # Remove duplicates from the list.
+  # Note that duplicates can stem from @INC containing paths that are subpaths of each other -
+  # such as '/Library/Perl/Updates/5.18.2' and '/Library/Perl/Updates/5.18.2/darwin-thread-multi-2level' - 
+  # and possibly also from symlinks to dirs.
+  @modules = sort(unique(@modules)); # !! All parentheses are needed here.
+}
+
+# MAIN LOOP over all module names supplied / module files found.
+my $mod_name;
+my $mod_rel_path;
+my $mod_path;
+my @mod_paths_pername;
+my @mod_paths;
+my $fail_count = 0;
+my @fail_modules;
+my $isloaded;
+MODULE: for (@modules) {
+  
+  $isloaded = 0;
+
+  if ($modules_are_paths) {  # arguments are already filesystem paths (-a without module names was passed)
+
+    $mod_path = $_;
+    @mod_paths_pername = $mod_path; # by definition only 1 path to examine per module: the specified module file itself
+
+  } else { # module (package) names specified
+
+    # As a courtesy, even though we expect a package module name with '::' separators,
+    # we translate '/'' into '::'' and strip a '.pm' or '.pmc' extension, if present.
+    $mod_name = relpath2modname $_;
+
+    # Translate the module name to its relative file path, because that's how
+    # it's represented in the *keys* of %INC.
+    $mod_rel_path = modname2relpath $mod_name;
+
+    # If it's already loaded, the relative path's entry in %INC will contain
+    # the complete path.
+    # Try suffix '.pm' first, then '.pmc' (rare in practice).      
+    $mod_path = $INC{$mod_rel_path} || $INC{$mod_rel_path . 'c'};
+  
+    $isloaded = 1 if $mod_path;
+
+    # Get all paths matching the module name among the dirs. in @INC.
+    # Normally, there should only be *1*; more than 1 indicates accidentally
+    # installed *duplicates*.
+    # !! Note that on case-insensitive filesystems the paths may differ in
+    # !! case, but Perl itself will ignore differences.
+    @mod_paths_pername = modname2paths $mod_name;
+
+    # Unless listing duplicates is explicitly requested with -a,
+    # only examine the FIRST match and warn (unless silenced).
+    if (scalar @mod_paths_pername > 1 and ! $all) {
+      mywarn "DUPLICATE module files found for '$mod_name':\n  " . join "\n  ", @mod_paths_pername[1..$#mod_paths_pername];
+      # Reduce array to the first match.
+      @mod_paths_pername = $mod_paths_pername[0];
+    }
+
+    if (! $isloaded) {
+      # Use the (first) module path obtained through manual search in @INC.
+      $mod_path = $mod_paths_pername[0];
+      # If no path was found, record failure and move on.
+      unless ($mod_path) { ++$fail_count; push @fail_modules, $mod_name; next MODULE; };
+    }
+
+    # Getting here means that the module was already loaded or could be located
+    # and $mod_path should contain a concrete filesystem path.
+
+    # However, on case-insensitive filesystems, this may be a false 
+    # positive, as the package name specified may be case-inexact, which
+    # prevents use of the module later.
+    # Thus, we make sure that the file path derived from the user-specified
+    # module name case-exactly represents the underlying module file path.
+    # !! THE ASSUMPTION IS THAT MODULE PATHS CONTAIN ASCII CHARS. ONLY.
+    if (! $isloaded) {
+      my $truecase_path = getruecasepath $mod_path;
+      my $mod_name_exactcase = truecasemodname $mod_name, $truecase_path;
+      if ($mod_name ne $mod_name_exactcase) {
+        mywarn "Module name '$mod_name' is CASE-INEXACT; use '$mod_name_exactcase'.";
+        # To be able to inspect the module, we must load it later with
+        # the case-exact name.
+        $mod_name = $mod_name_exactcase;
+        $mod_path = $truecase_path;
+        # !! If there are duplicates and their paths differ in case too, -v
+        # !! won't find the version number and core-module status for them.
+        $mod_paths_pername[0] = $mod_path;
+      }
+    }
+
+  }
+
+  # Derive additional information about the module, if verbose output is requested.
+  if ($verbose) {
+
+    # If file paths were given, we need to determine each file's package name.
+    if ($modules_are_paths) {
+
+      # See if the module is already loaded.
+      # If it is, the file path is in an %INC entry value and the key contains
+      # the abstract relative path - e.g., 'Data/Dumper.pm' - from which
+      # we can derive the package name.
+      %reversed_inc = reverse %INC unless %reversed_inc;
+      $mod_rel_path = $reversed_inc{$mod_path};
+      
+      $isloaded = 1 if $mod_rel_path;
+
+      # Determine the package name.
+      if ($isloaded) { # loaded        
+        # Transform abstract relative path into package name.
+        $mod_name = relpath2modname $mod_rel_path;
+      } else {  # not loaded
+        # Extract the package name directly from the module file.
+        # Note: Sadly, this has to be done by custom-parsing the file - Perl
+        #       provides no method for querying a loaded module for its package name(s).
+        $mod_name = extract_package_name $mod_path;
+        if (! $mod_name) {
+          mywarn "Failed to determine package name from module file '$mod_path'." 
+        }
+      }
+
+    }
+    
+    # Check if the module is a core module.
+    # Default to a value that indicates that the core-module status cannot
+    # be determined, either due to unavailability of Module::CoreList, or
+    # because a package name could not be determined.
+    my $corestatus = '(n/a)';
+    if ($mod_name) {
+      if (defined &Module::CoreList::first_release) {
+        my $first_perl_release_with_module_if_core = Module::CoreList::first_release($mod_name);
+        $corestatus = $first_perl_release_with_module_if_core ? "core>=$first_perl_release_with_module_if_core" : '(non-core)';
+      }
+    }
+
+    for my $this_mod_path (@mod_paths_pername) {
+
+      my $mod_ver;
+
+      if ($mod_name) {
+
+        # Try to obtain the version number.
+        if ($this_mod_path eq $mod_paths_pername[0] and $isloaded) {
+          # !! Accessing a loaded package's $VERSION variable  can fail with 
+          # !! modules such as 'strictures', which turns
+          # !! on `use warnings FATAL => 'all'` and, ironically, then generates
+          # !! a fatal warning when $VERSION is accessed.
+          eval { $mod_ver = $mod_name->VERSION; };
+        } else {
+          # We must load the module to query its version number.
+          # !! There are simply too many variations of setting $VERSION to
+          # !! reliably perform source-code text parsing.
+          # !! We load the module EXTERNALLY to avoid inadvertent alteration
+          # !! of this script's environment, which derails things most noticeably
+          # !! with -a and no module-name arguments.
+          # !! As a beneficial side effect, the invoked command's stdout will
+          # !! NOT be a terminal, which bypasses problems with modules such as
+          # !! as IO::Pager::Page, which, on loading(!) sends all subsequent
+          # !! stdout output to a terminal pager(!)
+          # !! Note that we silence stderr to avoid noise from modules that
+          # !! break on loading.
+          # !! By using require() with the filesystem path, we explicitly control what file
+          # !! is loaded, which also allows us to examine duplicates.
+          my $cmd = sprintf 'perl -e "require \'%s\'; print ' . ($^O eq 'MSWin32' ? '$' : '\$') . '%s::VERSION" 2>' . File::Spec->devnull(), $this_mod_path, $mod_name;
+          $mod_ver = `$cmd`;
+          if ($?) {  
+            mywarn "Failed to load module '$mod_name'.";
+          }
+          undef $mod_ver if $mod_ver eq '';
+        }
+
+        # Note: Not finding a version number is not uncommon in practice,
+        #       so we do NOT warn in that event lest we generate too much noise.
+
+      }
+
+      printf "%s\t%s\t%s\t%s\n", 
+        defined $mod_name ? $mod_name : '?', 
+        defined $mod_ver ? $mod_ver : '?', 
+        $corestatus, 
+        $this_mod_path;      
+
+    }
+
+  } else { # Just output paths.
+
+    print $_, "\n" for @mod_paths_pername;
+
+  }
+
+  # If matching modules are to be opened in the default text editor,
+  # collect their filesystem paths.
+  push @mod_paths, $mod_path if $openineditor;
+
+}
+
+if ($fail_count) {
+  local $" = "\n  ";
+  print STDERR <<EOF if @fail_modules;
+$kTHIS_NAME: ERROR: The following module(s) could not be located:
+  @fail_modules
+To see the search path, run: perl -e "print join(\\\"\\n\\\", \@INC), \\\"\\n\\\""
+EOF
+}
+
+if ($openineditor and @mod_paths) {
+  openurl $_ for @mod_paths;
+}
+
+exit $fail_count;
+
+
+# SYNOPSIS
+#   getruecasepath <path>
+# DESCRIPTION
+#   Returns the true case of the specified filesystem path.
+#   CAVEAT: WORKS WITH ASCII-CHARS-ONLY PATHS ONLY.
+sub getruecasepath {
+  use File::Spec;
+  use File::Glob qw/bsd_glob GLOB_NOCASE GLOB_QUOTE/;
+  my ($drive, $dir, $file) = File::Spec->splitpath(shift);
+  $dir =~ s'\\'/'g; # convert all path separators to '/'
+  my $nodrive_path = $dir . $file;
+  $nodrive_path =~ s/[][{}*?\\]/\\$&/; # escape literal chars. that are pattern metachars. (not likely)
+  # Artifically construct a glob by enclosing the 1st char of *every* 
+  # path component in [] - this forces returning the case-exact form of the
+  # path component at every level.
+  my $glob = join '', map { 
+      m`^(/|\\|\.|\.\.|)$` ? 
+        $_ 
+        : 
+        do { my $len = m`^\\` ? 2 : 1; '[' . substr($_, 0, $len) . ']' . substr($_, $len) } 
+    } split m`(/|\\)`, $nodrive_path;
+ # !! WORKAROUND FOR MSYS / GIT BASH:
+ # !! MSYS has a hidden /usr directory that, inexplicably, ls and globbing don't see,
+ # !! Perl modules are in the /usr subtree.
+ # !! Globbing subordinate paths of /usr works, however, so we simply replace
+ # !! pattern '/[usr]/' with literal '/usr/'.
+ if ($^O eq 'msys') {  $glob =~ s'/\[u\]sr/'/usr/'; }
+  # Perform globbing, which should return either undefined or the case-exact
+  # form of the underlying filesystem item.
+  return bsd_glob($drive . $glob, GLOB_NOCASE | GLOB_QUOTE);
+}
+
+# relative file path -> module name
+# E.g.: Data/Dumper.pm -> Data::Dumper
+sub relpath2modname {
+  my $mod = $_[0];
+  $mod =~ s/^(.+?)\.pmc?$/$1/;
+  $mod =~ s'/'::'g;
+  return $mod;
+}
+
+# module name -> relative file path
+# E.g.: Data::Dumper -> Data/Dumper.pm
+sub modname2relpath {
+  my $mod = $_[0];
+  $mod =~ s'::'/'g;
+  return $mod . '.pm';
+}
+
+# # module name -> concrete file path, in the subtree of one of the dirs. in @INC
+# sub modname2path {
+#   use File::Spec;
+#   my $relpath = modname2relpath shift;
+#   my $path;
+#   for (@INC) {
+#     $path = File::Spec->catfile($_, $relpath);
+#     return $path if -f $path;
+#   }
+#   return;
+# }
+
+# module name -> concrete file paths, in the subtree of the dirs. in @INC
+# Note: Normally, just ONE. Multiple results indicate accidental duplicate
+#       installation of modules.
+sub modname2paths {
+  use File::Spec;
+  my $relpath = modname2relpath shift;
+  my $path;
+  my @paths;
+  for (@INC) {
+    $path = File::Spec->catfile($_, $relpath);
+    push @paths, $path if -f $path;
+  }
+  return @paths;
+}
+
+
+# SYNOPSIS
+#   truecasemodname <modname> <truecasefullpath>
+# DESCRIPTION
+#   Given a potentially case-inexact module name and its true-case filesystem 
+#   representation, returns the case-exact module name.
+# EXAMPLE
+#     truecasemodname data::dumper /Library/Perl/5.20/Data/Dumper.pm # -> Data::Dumper
+sub truecasemodname {
+  my $relpathlen = length modname2relpath($_[0]);
+  if ($_[1] =~ m'c$') { ++$relpathlen; }
+  return relpath2modname substr($_[1], -$relpathlen);
+}
+
+# SYNOPSIS
+#   extract_package_name <modulefile>, [<all>]
+# DESCRIPTION
+#   Extracts the name from the first 'package ...;' declaration encountered
+#   in the specified Perl module file and returns it as a scalar.
+#
+#   Pass a truthy value as the 2nd argument <all> to extract ALL package
+#   names, in which case the return value is always a list - even if only
+#   one name is found.
+#
+# CAVEATS
+#   - Only works with literal package-name declarations such as 'package Foo::Bar;'
+#   - The following forms are recognized:
+#       package <name>
+#       package [# ...]
+#          <name>
+#     The 2nd form is often used to hide package declarations from PAUSE.
+#     Note that, while not common in practice, the package name may be 
+#     followed by a version number and/or code block.
+#   - There may be false positives, such as inside here-documents.
+# EXAMPLE
+#   my $name = extract_package_name '/System/Library/Perl/5.18/darwin-thread-multi-2level/File/Spec.pm'
+#   my @names = extract_package_name '/System/Library/Perl/5.18/darwin-thread-multi-2level/File/Spec.pm', 1
+sub extract_package_name {
+  my $file = shift;
+  my $all = shift;
+  # To avoid issues with non-UTF8-encoded modules - e.g., embedded PODs
+  # with '=encoding ISO8859-1' directives - we open the file as a stream of bytes.
+  # The assumption is that package names never contain non-ASCII chars.  
+  open my $fh, '<:bytes', $file;
+  my $insidepod;
+  my @names = ();
+  while (<$fh>) {
+    chomp;
+    # Skip POD blocks.
+    # Note: =<section> markers MUST start at col 1.
+    if (m'^=([[:alpha:]]\w*)') {
+      if ($1 eq 'cut') {
+        $insidepod = 0;
+        next;
+      }
+      $insidepod = 1;
+    }
+    next if $insidepod;
+    # Once we reach __END__ or __DATA__, we're done.
+    # Note: whitespace may precede and follow these markers (and any tokens may follow) 
+    m'^\s*__(END|DATA)__(\s|$)' and last;
+    # NOTE: Currently, we don't deal with potential false positives from here-documents.
+    # Getting here means: the line at hand potentially contains a package declaration.
+    # Note that the package name, while rare in practice, may be followed by a version number 
+    # and/or code block, so we do NOT look for a terminating ';'
+    # If we find a package ...; statement at the beginning of a line, extract the name.
+    if (m'^\s*package\s+([\w:\']+)') { # note: Perl < 5 code used ' instead of :: to separate namespace components
+      push @names, $1;
+      last unless $all;
+    } elsif (m'^\s*package\s*#?') { # possibly a 2-line obfuscated declaration to hide it from PAUSE
+      $_ = <$fh>; # read next line
+      if (m'^\s*([\w:\']+)') {
+        push @names, $1;
+        last unless $all;
+      }
+    }
+  }
+  close $fh;
+  return $all ? @names : $names[0];
+}
+
+# SYNOPSIS
+#   unique LIST
+# DESCRIPTION
+#   Returns a list with all duplicates removed from the input list.
+#   Unlike with the Unix uniq utility, the input list need NOT be sorted.
+# CAVEATS
+#   An item containing undef triggers a warning.
+#   A null string is treated the same as undef, and whichever of 
+#   the two values encountered first is used in the return value.
+sub unique {
+  my %seen;
+  return grep { ! $seen{$_}++ } @_;
+}
+
+# SYNOPSIS
+#   openurl <url>
+# DESCRIPTION
+#   Opens the specified URL in the system's default browser.
+# COMPATIBILITY
+#   OSX, Windows (including MSYS, Git Bash, and Cygwin), Freedesktop-compliant
+#   OSs, which includes many Linux distros (e.g., Ubuntu), PC-BSD, OpenSolaris...
+#   CYGWIN CAVEAT: if a URL contains something that looks like a shell
+#     variable reference to an *existing* variable (e.g., %PATH%), the
+#     value is inadvertently expanded; fortunately, that should rarely
+#     happen in the real world.
+# NOTES
+#   To bypass variations in ad-hoc encoding across platforms, it is safer to
+#   pass an already HTML-encoded URL (where, e.g., spaces are already encoded as '%20').
+#   Gratefully adapted from http://stackoverflow.com/a/8869676/45375.
+sub openurl {
+  my $url = shift;
+  my $platform = $^O;
+  my $cmd;
+  if    ($platform eq 'darwin')  { $cmd = "open \"$url\"";       }         # OS X
+  elsif ($platform eq 'MSWin32' or $platform eq 'msys') { $cmd = "start \"\" \"$url\""; }     # Windows native or Windows MSYS / Git Bash
+    # !! Cygwin: Bizarrely, the only way to get cmd.exe to treat the URL as a 
+    # !! literal (almost), is to *append a space*, which, fortunately, is ultimately 
+    # !! ignored by browsers. The only edge case where interpretation still happens
+    # !! is if the URL contains  syntactically valid reference to an *existing*
+    # !! environment variable; e.g., %PATH%.
+    # !! The following test URL demonstrates that all other special chars.
+    # !! are handled correctly:
+    # !!  http://example.org/test?foo^hat%20after%PATH1%&more=stuff(42<46)|@notsofast!
+  elsif ($platform eq 'cygwin')  { $cmd = "cmd.exe /c start \"\" \"$url \""; } # Cygwin; !! note the required trailing space
+  else { $cmd = "xdg-open \"$url\""; }  # assume a Freedesktop-compliant OS, which includes many Linux distros, PC-BSD, OpenSolaris, ...
+  if (system($cmd) != 0) {
+    die "Cannot locate or failed to open default browser; please go to '$url' manually.\n";
+  }
+}
+
+
+# SYNOPSIS
+#   globex PATTERNLIST[, \%options]
+# DESCRIPTION
+#   Extends the standard glob() function with support for recursive globbing.
+#   Prepend '**/' to the part of the pattern that should match anywhere in the
+#   subtree or end the pattern with '**' to match all files and dirs. in the
+#   subtree, similar to Bash's `globstar` option.
+#
+#   A pattern that doesn't contain '**' is passed to the regular glob()
+#   function.
+#   While you can use brace expressions such as {a,b}, using '**' INSIDE
+#   such an expression is NOT supported, and will be treated as just '*'.
+#   Unlike with glob(), whitespace in a pattern is considered part of that
+#   pattern; use separate pattern arguments or a brace expression to specify
+#   multiple patterns.
+#
+#   To also follow directory symlinks, set 'follow' to 1 in the options hash
+#   passed as the optional last argument.
+#   Note that this changes the sort order - see below.
+#
+#   Traversal:
+#   For recursive patterns, any given directory examined will have its matches
+#   listed first, before descending depth-first into the subdirectories.
+#
+#   Hidden directories:
+#   These are skipped by default, onless you set 'hiddendirs' to 1 in the
+#   options hash passed as the optional last argument.
+#
+#   Sorting:
+#   A given directory's matching items will always be sorted
+#   case-insensitively, as with glob(), but sorting across directories
+#   is only ensured, if the option to follow symlinks is NOT specified.
+#
+#   Duplicates:
+#   Following symlinks only prevents cycles, so if a symlink and its target
+#   they will both be reported.
+#   (Under the hood, following symlinks activates the following 
+#    File::Find:find() options: `follow_fast`, with `follow_skip` set to 2.)
+#
+#   Since the default glob() function is at the heart of this function, its
+#   rules - and quirks - apply here too:
+#   - If literal components of your patterns contain pattern metacharacters,
+#     - * ? { } [ ] - you must make sure that they're \-escaped to be treated
+#     as literals; here's an expression that works on both Unix and Windows
+#     systems: s/[][{}\-~*?]/\\$&/gr
+#   - Unlike with glob(), however, whitespace in a pattern is considered part
+#     of the pattern; to specify multiple patterns, use either a brace
+#     expression (e.g., '{*.txt,*.md}'), or pass each pattern as a separate
+#     argument.
+#   - A pattern ending in '/' restricts matches to directories and symlinks
+#     to directories, but, strangely, also includes symlinks to *files*.
+#   - Hidden files and directories are NOT matched by default; use a separate
+#     pattern starting with '.' to include them; e.g., globex '**/{.*,*}'
+#     matches all files and directories, including hidden ones, in the 
+#     current dir.'s subtree.
+#     Note: As with glob(), .* also matches '.' and '..'
+#   - Tilde expansion is supported; escape as '\~' to treat a tilde as the
+#     first char. as a literal.
+#  -  A literal path (with no pattern chars. at all) is echoed as-is, 
+#     even if it doesn't refer to an existing filesystem item.
+#
+# COMPATIBILITY NOTES
+#   Requires Perl v5.6.0+
+#   '/' must be used as the path separator on all platforms, even on Windows.
+#
+# EXAMPLES
+#   # Find all *.txt files in the subtree of a dir stored in $mydir, including
+#   # in hidden subdirs.
+#   globex "$mydir/*.txt", { hiddendirs => 1 };
+#
+#   # Find all *.txt and *.bak files in the current subtree.
+#   globex '**/*.txt', '**/*.bak'; 
+#
+#   # Ditto, though with different output ordering:
+#   # Unlike above, where you get all *.txt files across all subdirs. first,
+#   # then all *.bak files, here you'll get *.txt files, then *.bak files
+#   # per subdirectory encountered.
+#   globex '**/{*.txt,*.bak}';
+# 
+#   # Find all *.pm files anywhere in the subtrees of the directories in the
+#   # module search path, @INC; follow symlinks.
+#   # Note: The assumption is that no directory in @INC has embedded spaces
+#   #       or contains pattern metacharacters.
+#   globex '{' . (join ',', @INC) . '}/**/*.pm', { follow => 1 };
+sub globex {
+
+  use File::Find;
+  use File::Spec;
+  use File::Basename;
+  use File::Glob qw/bsd_glob GLOB_BRACE GLOB_NOMAGIC GLOB_QUOTE GLOB_TILDE GLOB_ALPHASORT/;
+
+  my @patterns = @_;
+  # Set the flags to use with bsd_glob() to emulate default glob() behavior.
+  my $globflags = GLOB_BRACE | GLOB_NOMAGIC | GLOB_QUOTE | GLOB_TILDE | GLOB_ALPHASORT;
+  my $followsymlinks;
+  my $includehiddendirs;
+  if (ref($patterns[-1]) eq 'HASH') {
+    my $opthash = pop @patterns;
+    $followsymlinks = $opthash->{follow};
+    $includehiddendirs = $opthash->{hiddendirs};
+  }
+  unless (@patterns) { return };
+
+  my @matches;
+  my $ensuredot;
+  my $removedot;
+  # Use fc(), the casefolding function for case-insensitive comparison, if available.
+  my $cmpfunc = defined &CORE::fc ? \&CORE::fc : \&CORE::lc;
+
+  for (@patterns) {
+    my ($startdir, $anywhereglob) = split '(?:^|/)\*\*(?:/|$)';
+    if (defined $anywhereglob) {  # recursive glob
+      if ($startdir) {
+        $ensuredot = 1 if m'\./'; # if pattern starts with '.', ensure it is prepended to all results
+      } elsif (m'^/') { # pattern starts with root dir, '/'
+        $startdir = '/';
+      } else { # pattern starts with '**'; must start recursion with '.', but remove it from results
+        $removedot = 1;
+        $startdir = '.';
+      }
+      unless ($anywhereglob) { $anywhereglob = '*'; }
+      my $terminator = m'/$' ? '/' : '';
+      # Apply glob() to the start dir. as well, as it may be a pattern itself.
+      my @startdirs = bsd_glob $startdir, $globflags or next;
+      find({
+          wanted => sub {
+            # Ignore symlinks, unless told otherwise.
+            unless ($followsymlinks) { -l $File::Find::name and return; }
+            # Ignore non-directories and '..'; we only operate on 
+            # subdirectories, where we do our own globbing.
+            ($_ ne '..' and -d) or return;
+            # Skip hidden dirs., unless told otherwise.
+            unless ($includehiddendirs) {  return if basename($_) =~ m'^\..'; }
+            my $globraw;
+            # Glob without './', if it wasn't part of the input pattern.
+            if ($removedot and m'^\./(.+)$') { 
+              $_ = $1;
+            }
+            $globraw = File::Spec->catfile($_, $anywhereglob);
+            # Ensure a './' prefix, if the input pattern had it.
+            # Note that File::Spec->catfile() removes it.
+            if($ensuredot) {
+              $globraw = './' . $globraw if $globraw !~ m'\./';
+            }
+            push @matches, bsd_glob $globraw . $terminator, $globflags;
+          },
+          no_chdir => 1,
+          follow_fast => $followsymlinks, follow_skip => 2,
+          # Pre-sort the items case-insensitively so that subdirs. are processed in sort order.
+          # NOTE: Unfortunately, the preprocess sub is only called if follow_fast (or follow) are FALSE.
+          preprocess => sub { return sort { &$cmpfunc($a) cmp &$cmpfunc($b) } @_; }
+        }, 
+        @startdirs);
+    } else {  # simple glob
+      push @matches, bsd_glob($_, $globflags);
+    }
+  }
+  return @matches;
+}
+
+
+
+####
+# MAN PAGE MARKDOWN SOURCE
+#  - Place a Markdown-formatted version of the man page for this script
+#    below the `__DATA__` line below.
+#  - Do not alter the `__DATA__` line in any way.
+#  - The entire rest of this script
+#    is assumed to be the Markdown document.
+#  Markdown formatting:
+#   Append the manual-section number directly to the CLI name in the first heading; e.g.
+#      # foo(1) - does bar
+#   Use 1-space indentation for plain-text rendering; 4-space indentation, as usual, for code blocks.
+#    - The SYNOPSIS chapter is extracted when -h/--help is invoked.
+#    - To support plain-text rendering in the terminal, limit lines to 80 chars.
+#    - For the benefit of proper presentation in HTML (rendered Markdown):
+#      - Mark every explicit line break with 2 trailing spaces, 
+#        including at the end of list items.
+#      - To associate more than 1 paragraph with a list item, use the following TRICK:
+#        To produce an empty line while still keeping the text attached to the list item,
+#        use '&nbsp;  ' (note the 2 trailing spaces).
+####
+__DATA__
+# whichpm(1) - locate installed Perl modules
+
+## SYNOPSIS
+ Prints the filesystem paths of the specified Perl modules, if installed.
+
+    whichpm    [-v] [-q] [-e] <module_name>...
+    whichpm -a [-v] [-q] [-e] [<module_name>...]
+
+    -a ... lists all installed module files / all module files matching  
+           the specified name(s) (checks for accidental duplicates)
+    -v ... verbose mode: also prints name, version, core-module status
+    -q ... suppresses warnings
+    -e ... opens modules in default text editor
+
+ Standard options: `--help`, `--man`, `--version`, `--home`
+
+## DESCRIPTION
+ `whichpm` reports the filesystem path of Perl modules by module (package)  
+ name, similar to what the Unix `which` utility does for binaries.
+
+ Optionally, additional information can be output, and all installed modules  
+ can be listed.
+
+ The exit code reflects the number of modules that could NOT be found.  
+ I.e., a non-zero exit code implies that at least one module could not be  
+ found.  
+ Conversely, exit code 0 implies that all specified modules were located  
+ successfully.
+
+ Note that using `-v` requires starting a separate Perl instance for each  
+ module examined in order to determine the version number. A separate Perl  
+ instance is the only safe way to load a module without affecting operation  
+ of this utility itself.  
+ Combining `-v` with `-a` with no module names therefore results in a  
+ lengthy, resource-intensive operation.
+
+## OPTIONS
+
+* `-a, --all`, if no module names are specified, prints the filesystem paths  
+  of all installed modules. See caveat re combining with `-v` above.    
+  Otherwise, prints the paths of all files matching the specified module  
+  name(s), which effectively tells you whether a given module is accidentally  
+  installed in more than one location.
+
+* `-e, --edit` also opens the module files in your system's default text  
+  editor. On Windows, you may be prompted to choose that editor on first run.  
+  Caveat: Will not work on Cygwin.
+
+* `-v, --verbose` also outputs the package name, version number, and  
+  information about whether the module is a core module; see performance  
+  caveat above.  
+  Output format:  
+   `<name>\t<version>\t<core-indicator>\t<path>`  
+  On Unix platforms, pipe to `column -t` for column-aligned display.  
+  If the package name or version number cannot be determined, '?' is printed.  
+  `<core-indicator>` shows the following:  
+  If the module is a core module:  
+    Something like `core>=5.005`, which indicates what Perl version first  
+    included the module.  
+    To see a list of what Perl version included what version of the module,  
+    run `corelist -a <module_name>`.  
+  Otherwise: `(non-core)`  
+  If your Perl version is too old to support this check, or if the module  
+  name is unknown, you'll see `(n/a)`.
+
+* `-q, --quiet` suppresses warnings, such as module file's package name  
+  cannot be determined, or duplicate module files are found, or, on Windows  
+  or OSX, when a case-inexact form of a module name is specified.
+
+## STANDARD OPTIONS
+
+ All standard options provide information only.
+
+ * `-h, --help`  
+   Prints the contents of the synopsis chapter to stdout for quick reference.
+
+* `--man`  
+  Displays this manual page, which is a helpful alternative to using `man`  
+  if the manual page is not installed, such as on Windows.
+
+ * `--version`  
+   Prints version information.
+
+ * `--home`  
+   Opens this utility's home page in the system's default web browser.
+
+## NOTES
+ On platforms with case-sensitive filesystems you must specify case-exact  
+ package names, as Perl itself requires; for instance, 'data::dumper' will  
+ not find the 'Data::Dumper' module.  
+ On case-insensitive filesystems, such as on Windows and OS X, you can get  
+ away with specifying a case-inexact package name, but a warning will be  
+ issued.
+
+ Note that Perl's search path for modules (`@INC`) typically includes the  
+ current directory (`.`), so you may get different results depending  
+ on which directory `whichpm` is called from.
+
+ When using `-a` without module names in combination with `-v`, the package  
+ names have to be extracted by custom-parsing the module file, which may  
+ not succeed in all cases - package declarations may be missed, or false  
+ positives may be found.
+
+## COMPATIBILITY
+ Requires Perl v5.4.50 or higher; for core-module status information,  
+ v5.8.9 or higher is required. 
+ Expected to work on Unix-like platforms and Windows.
+
+## EXAMPLES
+
+    # Find and report additional information about the Data::Dumper module,
+    # then open it in the default text editor.
+    whichpm -v -e Data::Dumper
+    
+## LICENSE
+  Copyright (c) 2015 Michael Klement (mklement0@gmail.com), released under   
+  the [MIT license](https://spdx.org/licenses/MIT)

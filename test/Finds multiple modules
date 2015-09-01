@@ -1,0 +1,27 @@
+#!/usr/bin/env bash
+
+# ---
+# IMPORTANT: Use the following statement at the TOP OF EVERY TEST SCRIPT
+#            to ensure that this package's 'bin/' subfolder is added to the path so that
+#            this package's CLIs can be invoked by their mere filename in the rest
+#            of the script.
+# ---
+PATH=${PWD%%/test*}/bin:$PATH
+
+# Helper function for error reporting.
+die() { (( $# > 0 )) && echo "ERROR: $*" >&2; exit 1; }
+
+# Invoke with 2 (core) modules.
+out=$(whichpm File::Find File::Spec) || die
+
+# Convert output lines into an array.
+IFS=$'\n' read -r -d '' -a lines <<<"$out"
+
+# Make sure the corresponding paths are there.
+pathFragments=( '/File/Find.pm' '/File/Spec.pm' )
+for (( i = 0; i < 2; i++ )); do
+  [[ "${lines[i]}" =~ "${pathFragments[i]}"$ ]] || die "Expected '${pathFragments[i]}' in output."
+done
+
+exit 0
+

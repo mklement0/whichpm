@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+
+# ---
+# IMPORTANT: Use the following statement at the TOP OF EVERY TEST SCRIPT
+#            to ensure that this package's 'bin/' subfolder is added to the path so that
+#            this package's CLIs can be invoked by their mere filename in the rest
+#            of the script.
+# ---
+PATH=${PWD%%/test*}/bin:$PATH
+
+# Helper function for error reporting.
+die() { (( $# > 0 )) && echo "ERROR: $*" >&2; exit 1; }
+
+# Invoke whichpm -a, which lists all locally installed modules.
+# As a sanity check, we make sure that at least several are output.
+count=10
+outCount=$(whichpm -a | head -n $count | wc -l) || die
+
+(( outCount == count )) || die "Expected at least $count lines, got $outCount."
+
+exit 0

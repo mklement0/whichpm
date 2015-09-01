@@ -1,0 +1,38 @@
+#!/usr/bin/env bash
+
+# ---
+# IMPORTANT: Use the following statement at the TOP OF EVERY TEST SCRIPT
+#            to ensure that this package's 'bin/' subfolder is added to the path so that
+#            this package's CLIs can be invoked by their mere filename in the rest
+#            of the script.
+# ---
+PATH=${PWD%%/test*}/bin:$PATH
+
+# Helper function for error reporting.
+die() { (( $# > 0 )) && echo "ERROR: $*" >&2; exit 1; }
+
+# Look for duplicates, which, assuming that @INC contains '.', should
+# find one, because of our dummy module in ./Data/Dumper.pm
+out=$(whichpm -a -v Data::Dumper) || die
+
+# Convert output lines to array.
+IFS=$'\n' read -r -d '' -a lines <<<"$out"
+
+# Make sure the corresponding paths are there.
+pathFragment='/Data/Dumper.pm'
+for (( i = 0; i < 2; i++ )); do
+  [[ ${lines[i]} =~ "$pathFragment"$ ]] || die "Expected '$pathFragment' in output line '${lines[i]}'."
+done
+
+# --- Make sure that the dummy module's version number was reported.
+
+dummyVer='9.999'
+[[ "${lines[1]}" =~ $'\t'"$dummyVer"$'\t' ]] || die "Expected '$dummyVer' in output line '${lines[1]}'."
+
+# ---- Without -a, make sure that a warning notifying of the *existence* of a duplicate is reported.
+
+errOut=$(whichpm Data::Dumper 2>&1 1>/dev/null) || die
+
+grep -Fi 'duplicate' <<<"$errOut" || die "Expected duplicate warning in stderr output: '$errOut'."
+
+exit 0

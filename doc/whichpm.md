@@ -1,0 +1,117 @@
+# whichpm(1) - locate installed Perl modules
+
+## SYNOPSIS
+ Prints the filesystem paths of the specified Perl modules, if installed.
+
+    whichpm    [-v] [-q] [-e] <module_name>...
+    whichpm -a [-v] [-q] [-e] [<module_name>...]
+
+    -a ... lists all installed module files / all module files matching  
+           the specified name(s) (checks for accidental duplicates)
+    -v ... verbose mode: also prints name, version, core-module status
+    -q ... suppresses warnings
+    -e ... opens modules in default text editor
+
+ Standard options: `--help`, `--man`, `--version`, `--home`
+
+## DESCRIPTION
+ `whichpm` reports the filesystem path of Perl modules by module (package)  
+ name, similar to what the Unix `which` utility does for binaries.
+
+ Optionally, additional information can be output, and all installed modules  
+ can be listed.
+
+ The exit code reflects the number of modules that could NOT be found.  
+ I.e., a non-zero exit code implies that at least one module could not be  
+ found.  
+ Conversely, exit code 0 implies that all specified modules were located  
+ successfully.
+
+ Note that using `-v` requires starting a separate Perl instance for each  
+ module examined in order to determine the version number. A separate Perl  
+ instance is the only safe way to load a module without affecting operation  
+ of this utility itself.  
+ Combining `-v` with `-a` with no module names therefore results in a  
+ lengthy, resource-intensive operation.
+
+## OPTIONS
+
+* `-a, --all`, if no module names are specified, prints the filesystem paths  
+  of all installed modules. See caveat re combining with `-v` above.    
+  Otherwise, prints the paths of all files matching the specified module  
+  name(s), which effectively tells you whether a given module is accidentally  
+  installed in more than one location.
+
+* `-e, --edit` also opens the module files in your system's default text  
+  editor. On Windows, you may be prompted to choose that editor on first run.  
+  Caveat: Will not work on Cygwin.
+
+* `-v, --verbose` also outputs the package name, version number, and  
+  information about whether the module is a core module; see performance  
+  caveat above.  
+  Output format:  
+   `<name>\t<version>\t<core-indicator>\t<path>`  
+  On Unix platforms, pipe to `column -t` for column-aligned display.  
+  If the package name or version number cannot be determined, '?' is printed.  
+  `<core-indicator>` shows the following:  
+  If the module is a core module:  
+    Something like `core>=5.005`, which indicates what Perl version first  
+    included the module.  
+    To see a list of what Perl version included what version of the module,  
+    run `corelist -a <module_name>`.  
+  Otherwise: `(non-core)`  
+  If your Perl version is too old to support this check, or if the module  
+  name is unknown, you'll see `(n/a)`.
+
+* `-q, --quiet` suppresses warnings, such as module file's package name  
+  cannot be determined, or duplicate module files are found, or, on Windows  
+  or OSX, when a case-inexact form of a module name is specified.
+
+## STANDARD OPTIONS
+
+ All standard options provide information only.
+
+ * `-h, --help`  
+   Prints the contents of the synopsis chapter to stdout for quick reference.
+
+* `--man`  
+  Displays this manual page, which is a helpful alternative to using `man`  
+  if the manual page is not installed, such as on Windows.
+
+ * `--version`  
+   Prints version information.
+
+ * `--home`  
+   Opens this utility's home page in the system's default web browser.
+
+## NOTES
+ On platforms with case-sensitive filesystems you must specify case-exact  
+ package names, as Perl itself requires; for instance, 'data::dumper' will  
+ not find the 'Data::Dumper' module.  
+ On case-insensitive filesystems, such as on Windows and OS X, you can get  
+ away with specifying a case-inexact package name, but a warning will be  
+ issued.
+
+ Note that Perl's search path for modules (`@INC`) typically includes the  
+ current directory (`.`), so you may get different results depending  
+ on which directory `whichpm` is called from.
+
+ When using `-a` without module names in combination with `-v`, the package  
+ names have to be extracted by custom-parsing the module file, which may  
+ not succeed in all cases - package declarations may be missed, or false  
+ positives may be found.
+
+## COMPATIBILITY
+ Requires Perl v5.4.50 or higher; for core-module status information,  
+ v5.8.9 or higher is required. 
+ Expected to work on Unix-like platforms and Windows.
+
+## EXAMPLES
+
+    # Find and report additional information about the Data::Dumper module,
+    # then open it in the default text editor.
+    whichpm -v -e Data::Dumper
+    
+## LICENSE
+  Copyright (c) 2015 Michael Klement (mklement0@gmail.com), released under   
+  the [MIT license](https://spdx.org/licenses/MIT)

@@ -1,0 +1,188 @@
+.TH "WHICHPM" "1" "September 2015" "v0.1.0" ""
+.SH "NAME"
+\fBwhichpm\fR \- locate installed Perl modules
+.SH SYNOPSIS
+.P
+ Prints the filesystem paths of the specified Perl modules, if installed\.
+.P
+.RS 2
+.nf
+whichpm    [\-v] [\-q] [\-e] <module_name>\.\.\.
+whichpm \-a [\-v] [\-q] [\-e] [<module_name>\.\.\.]
+
+\-a \.\.\. lists all installed module files / all module files matching  
+       the specified name(s) (checks for accidental duplicates)
+\-v \.\.\. verbose mode: also prints name, version, core\-module status
+\-q \.\.\. suppresses warnings
+\-e \.\.\. opens modules in default text editor
+.fi
+.RE
+.P
+ Standard options: \fB\-\-help\fP, \fB\-\-man\fP, \fB\-\-version\fP, \fB\-\-home\fP
+.SH DESCRIPTION
+.P
+ \fBwhichpm\fP reports the filesystem path of Perl modules by module (package)
+.br
+ name, similar to what the Unix \fBwhich\fP utility does for binaries\.
+.P
+ Optionally, additional information can be output, and all installed modules
+.br
+ can be listed\.
+.P
+ The exit code reflects the number of modules that could NOT be found\.
+.br
+ I\.e\., a non\-zero exit code implies that at least one module could not be
+.br
+ found\.
+.br
+ Conversely, exit code 0 implies that all specified modules were located
+.br
+ successfully\.
+.P
+ Note that using \fB\-v\fP requires starting a separate Perl instance for each
+.br
+ module examined in order to determine the version number\. A separate Perl
+.br
+ instance is the only safe way to load a module without affecting operation
+.br
+ of this utility itself\.
+.br
+ Combining \fB\-v\fP with \fB\-a\fP with no module names therefore results in a
+.br
+ lengthy, resource\-intensive operation\.
+.SH OPTIONS
+.RS 0
+.IP \(bu 2
+\fB\-a, \-\-all\fP, if no module names are specified, prints the filesystem paths
+.br
+of all installed modules\. See caveat re combining with \fB\-v\fP above\.
+.br
+Otherwise, prints the paths of all files matching the specified module
+.br
+name(s), which effectively tells you whether a given module is accidentally
+.br
+installed in more than one location\.
+.IP \(bu 2
+\fB\-e, \-\-edit\fP also opens the module files in your system's default text
+.br
+editor\. On Windows, you may be prompted to choose that editor on first run\.
+.br
+Caveat: Will not work on Cygwin\.
+.IP \(bu 2
+\fB\-v, \-\-verbose\fP also outputs the package name, version number, and
+.br
+information about whether the module is a core module; see performance
+.br
+caveat above\.
+.br
+Output format:
+.br
+ \fB<name>\\t<version>\\t<core\-indicator>\\t<path>\fP
+.br
+On Unix platforms, pipe to \fBcolumn \-t\fP for column\-aligned display\.
+.br
+If the package name or version number cannot be determined, '?' is printed\.
+.br
+\fB<core\-indicator>\fP shows the following:
+.br
+If the module is a core module:
+.br
+  Something like \fBcore>=5\.005\fP, which indicates what Perl version first
+.br
+  included the module\.
+.br
+  To see a list of what Perl version included what version of the module,
+.br
+  run \fBcorelist \-a <module_name>\fP\|\.
+.br
+Otherwise: \fB(non\-core)\fP
+.br
+If your Perl version is too old to support this check, or if the module
+.br
+name is unknown, you'll see \fB(n/a)\fP\|\.
+.IP \(bu 2
+\fB\-q, \-\-quiet\fP suppresses warnings, such as module file's package name
+.br
+cannot be determined, or duplicate module files are found, or, on Windows
+.br
+or OSX, when a case\-inexact form of a module name is specified\.
+
+.RE
+.SH STANDARD OPTIONS
+.P
+ All standard options provide information only\.
+.RS 0
+.IP \(bu 2
+\fB\-h, \-\-help\fP
+.br
+Prints the contents of the synopsis chapter to stdout for quick reference\.
+
+.RE
+.RS 0
+.IP \(bu 2
+\fB\-\-man\fP
+.br
+Displays this manual page, which is a helpful alternative to using \fBman\fP
+.br
+if the manual page is not installed, such as on Windows\.
+.RS 0
+.IP \(bu 2
+\fB\-\-version\fP
+.br
+Prints version information\.
+.IP \(bu 2
+\fB\-\-home\fP
+.br
+Opens this utility's home page in the system's default web browser\.
+
+.RE
+
+.RE
+.SH NOTES
+.P
+ On platforms with case\-sensitive filesystems you must specify case\-exact
+.br
+ package names, as Perl itself requires; for instance, 'data::dumper' will
+.br
+ not find the 'Data::Dumper' module\.
+.br
+ On case\-insensitive filesystems, such as on Windows and OS X, you can get
+.br
+ away with specifying a case\-inexact package name, but a warning will be
+.br
+ issued\.
+.P
+ Note that Perl's search path for modules (\fB@INC\fP) typically includes the
+.br
+ current directory (\fB\|\.\fP), so you may get different results depending
+.br
+ on which directory \fBwhichpm\fP is called from\.
+.P
+ When using \fB\-a\fP without module names in combination with \fB\-v\fP, the package
+.br
+ names have to be extracted by custom\-parsing the module file, which may
+.br
+ not succeed in all cases \- package declarations may be missed, or false
+.br
+ positives may be found\.
+.SH COMPATIBILITY
+.P
+ Requires Perl v5\.4\.50 or higher; for core\-module status information,
+.br
+ v5\.8\.9 or higher is required\. 
+ Expected to work on Unix\-like platforms and Windows\.
+.SH EXAMPLES
+.P
+.RS 2
+.nf
+# Find and report additional information about the Data::Dumper module,
+# then open it in the default text editor\.
+whichpm \-v \-e Data::Dumper
+.fi
+.RE
+.SH LICENSE
+.P
+  Copyright (c) 2015 Michael Klement (mklement0@gmail\.com), released under
+.br
+  the MIT license \fIhttps://spdx\.org/licenses/MIT\fR
+

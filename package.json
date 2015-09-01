@@ -1,0 +1,56 @@
+{
+  "name": "whichpm",
+  "description": "Locates and reports information about installed Perl modules.",
+  "private": false,
+  "version": "0.1.0",
+  "os": [
+    "linux",
+    "darwin",
+    "win32"
+  ],
+  "preferGlobal": true,
+  "bin": {
+    "whichpm": "bin/whichpm"
+  },
+  "homepage": "https://github.com/mklement0/whichpm",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/mklement0/whichpm.git"
+  },
+  "bugs": {
+    "url": "https://github.com/mklement0/whichpm/issues"
+  },
+  "scripts": {
+    "test": "make test"
+  },
+  "keywords": [
+    "perl",
+    "module",
+    "installation",
+    "locate",
+    "path",
+    "version",
+    "duplicates"
+  ],
+  "directories": {
+    "bin": "./bin",
+    "doc": "./doc",
+    "man": "./man"
+  },
+  "author": "Michael Klement <mklement0@gmail.com> (http://same2u.net)",
+  "license": "MIT",
+  "net_same2u": {
+    "make_pkg": {
+      "tocOn": true,
+      "tocTitle": "**Contents**"
+    }
+  },
+  "devDependencies": {
+    "doctoc": "^0.13.0",
+    "json": "^9.0.3",
+    "replace": "^0.3.0",
+    "semver": "^4.2.0",
+    "tap": "^0.6.0",
+    "urchin": "^0.0.5"
+  }
+}

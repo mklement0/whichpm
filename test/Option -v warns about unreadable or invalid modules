@@ -1,0 +1,30 @@
+#!/usr/bin/env bash
+
+# ---
+# IMPORTANT: Use the following statement at the TOP OF EVERY TEST SCRIPT
+#            to ensure that this package's 'bin/' subfolder is added to the path so that
+#            this package's CLIs can be invoked by their mere filename in the rest
+#            of the script.
+# ---
+PATH=${PWD%%/test*}/bin:$PATH
+
+# Make the unreadable file readable again on exit, to avoid problems with Git not being able to read it either.
+trap 'chmod +r "./Data/Unreadable.pm"' EXIT
+
+# Helper function for error reporting.
+die() { (( $# > 0 )) && echo "ERROR: $*" >&2; exit 1; }
+
+# Note that only -v results in trying to read the module file,
+# and that even an inability to load the file is not considered a fatal 
+# error - it merely triggers a warning.
+
+# -- Test with a file that we don't have read permissions for.
+chmod -r './Data/Unreadable.pm' || die "Failed to set permissions."
+errOut=$(whichpm -v Data::Unreadable 2>&1 1>/dev/null) || die
+[[ $errOut =~ 'Failed to load' ]] || die "Expected warning about failure to load unreadable file, got '$errOut'."
+
+# -- Test with a file that doesn't contain valid Perl source code.
+errOut=$(whichpm -v Data::Invalid 2>&1 1>/dev/null) || die
+[[ $errOut =~ 'Failed to load' ]] || die "Expected warning about failure to load invalid file, got '$errOut'."
+
+exit 0

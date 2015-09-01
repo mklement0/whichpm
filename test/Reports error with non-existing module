@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+
+# ---
+# IMPORTANT: Use the following statement at the TOP OF EVERY TEST SCRIPT
+#            to ensure that this package's 'bin/' subfolder is added to the path so that
+#            this package's CLIs can be invoked by their mere filename in the rest
+#            of the script.
+# ---
+PATH=${PWD%%/test*}/bin:$PATH
+
+# Helper function for error reporting.
+die() { (( $# > 0 )) && echo "ERROR: $*" >&2; exit 1; }
+
+dummyModule='Nosuch::Module'
+errOut=$(whichpm "$dummyModule" 2>&1 1>/dev/null) && die "Unexpectedly didn't fail with dummy module '$dummyModule'."
+
+[[ -n $errOut ]] || die "Expected error message, but found none."
+
+exit 0
+
