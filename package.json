@@ -2,7 +2,7 @@
   "name": "whichpm",
   "description": "Locates and reports information about installed Perl modules.",
   "private": false,
-  "version": "0.1.0",
+  "version": "0.1.1",
   "os": [
     "linux",
     "darwin",
@@ -32,10 +32,9 @@
     "version",
     "duplicates"
   ],
+  "man": "./man/whichpm.1",
   "directories": {
-    "bin": "./bin",
-    "doc": "./doc",
-    "man": "./man"
+    "doc": "./doc"
   },
   "author": "Michael Klement <mklement0@gmail.com> (http://same2u.net)",
   "license": "MIT",
