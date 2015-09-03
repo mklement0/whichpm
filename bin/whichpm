@@ -19,7 +19,7 @@ eval "use Module::CoreList";  # requires v5.8.9+
 
 my $kTHIS_NAME = basename $0;
 my $kTHIS_HOMEPAGE='https://github.com/mklement0/whichpm';
-my $kVERSION = 'v0.1.1'; # This line is automatically updated by `make version VER=<newVer>`
+my $kVERSION = 'v0.1.2'; # This line is automatically updated by `make version VER=<newVer>`
 # Convert $kVERSION into a backward-compatible float stored in `our $VERSION`.
 our $VERSION = sprintf '%s.%03s%03s', split(/\./, substr $kVERSION, 1);
 
@@ -50,7 +50,7 @@ if (@ARGV) {
     print "${kTHIS_NAME} ${kVERSION}\n"; exit 0; 
   }
   elsif ($ARGV[0] eq '--home') { openurl $kTHIS_HOMEPAGE; exit $? >> 8; }
-  elsif ($ARGV[0] =~ '-h|--help') { 
+  elsif ($ARGV[0] =~ '^(-h|--help)$') { 
     # Extract the contents of the SYNOPSIS chapter from the embedded Markdown-formatted man-page document.
     my $txt = join '', <main::DATA>; close main::DATA;
     $txt = (split /\n[^ \n]/, (split /SYNOPSIS\n/s, $txt)[1])[0];
