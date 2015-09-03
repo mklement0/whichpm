@@ -19,7 +19,7 @@ eval "use Module::CoreList";  # requires v5.8.9+
 
 my $kTHIS_NAME = basename $0;
 my $kTHIS_HOMEPAGE='https://github.com/mklement0/whichpm';
-my $kVERSION = 'v0.1.2'; # This line is automatically updated by `make version VER=<newVer>`
+my $kVERSION = 'v0.1.3'; # This line is automatically updated by `make version VER=<newVer>`
 # Convert $kVERSION into a backward-compatible float stored in `our $VERSION`.
 our $VERSION = sprintf '%s.%03s%03s', split(/\./, substr $kVERSION, 1);
 
@@ -779,7 +779,7 @@ __DATA__
  * `-h, --help`  
    Prints the contents of the synopsis chapter to stdout for quick reference.
 
-* `--man`  
+ * `--man`  
   Displays this manual page, which is a helpful alternative to using `man`  
   if the manual page is not installed, such as on Windows.
 

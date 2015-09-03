@@ -2,7 +2,7 @@
   "name": "whichpm",
   "description": "Locates and reports information about installed Perl modules.",
   "private": false,
-  "version": "0.1.2",
+  "version": "0.1.3",
   "os": [
     "linux",
     "darwin",

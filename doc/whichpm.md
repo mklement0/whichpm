@@ -74,7 +74,7 @@
  * `-h, --help`  
    Prints the contents of the synopsis chapter to stdout for quick reference.
 
-* `--man`  
+ * `--man`  
   Displays this manual page, which is a helpful alternative to using `man`  
   if the manual page is not installed, such as on Windows.
 
