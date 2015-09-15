@@ -4,6 +4,9 @@ Versioning complies with [semantic versioning (semver)](http://semver.org/).
 
 <!-- NOTE: An entry template for a new version is automatically added each time `make version` is called. Fill in changes afterwards. -->
 
+* **[v0.1.5](https://github.com/mklement0/whichpm/compare/v0.1.4...v0.1.5)** (2015-09-15):
+  * [dev] Makefile improvements; various other behind-the-scenes tweaks.
+
 * **[v0.1.4](https://github.com/mklement0/whichpm/compare/v0.1.3...v0.1.4)** (2015-09-03):
   * [dev] Missing dev. dependency marked-man added.
 

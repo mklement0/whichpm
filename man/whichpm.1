@@ -1,9 +1,9 @@
-.TH "WHICHPM" "1" "September 2015" "v0.1.4" ""
+.TH "WHICHPM" "1" "September 2015" "v0.1.5" ""
 .SH "NAME"
 \fBwhichpm\fR \- locate installed Perl modules
 .SH SYNOPSIS
 .P
- Prints the filesystem paths of the specified Perl modules, if installed\.
+Prints the filesystem paths of the specified Perl modules, if installed\.
 .P
 .RS 2
 .nf
@@ -18,38 +18,38 @@ whichpm \-a [\-v] [\-q] [\-e] [<module_name>\.\.\.]
 .fi
 .RE
 .P
- Standard options: \fB\-\-help\fP, \fB\-\-man\fP, \fB\-\-version\fP, \fB\-\-home\fP
+Standard options: \fB\-\-help\fP, \fB\-\-man\fP, \fB\-\-version\fP, \fB\-\-home\fP
 .SH DESCRIPTION
 .P
- \fBwhichpm\fP reports the filesystem path of Perl modules by module (package)
+\fBwhichpm\fP reports the filesystem path of Perl modules by module (package)
 .br
- name, similar to what the Unix \fBwhich\fP utility does for binaries\.
+name, similar to what the Unix \fBwhich\fP utility does for binaries\.
 .P
- Optionally, additional information can be output, and all installed modules
+Optionally, additional information can be output, and all installed modules
 .br
- can be listed\.
+can be listed\.
 .P
- The exit code reflects the number of modules that could NOT be found\.
+The exit code reflects the number of modules that could NOT be found\.
 .br
- I\.e\., a non\-zero exit code implies that at least one module could not be
+I\.e\., a non\-zero exit code implies that at least one module could not be
 .br
- found\.
+found\.
 .br
- Conversely, exit code 0 implies that all specified modules were located
+Conversely, exit code 0 implies that all specified modules were located
 .br
- successfully\.
+successfully\.
 .P
- Note that using \fB\-v\fP requires starting a separate Perl instance for each
+Note that using \fB\-v\fP requires starting a separate Perl instance for each
 .br
- module examined in order to determine the version number\. A separate Perl
+module examined in order to determine the version number\. A separate Perl
 .br
- instance is the only safe way to load a module without affecting operation
+instance is the only safe way to load a module without affecting operation
 .br
- of this utility itself\.
+of this utility itself\.
 .br
- Combining \fB\-v\fP with \fB\-a\fP with no module names therefore results in a
+Combining \fB\-v\fP with \fB\-a\fP with no module names therefore results in a
 .br
- lengthy, resource\-intensive operation\.
+lengthy, resource\-intensive operation\.
 .SH OPTIONS
 .RS 0
 .IP \(bu 2
@@ -110,7 +110,7 @@ or OSX, when a case\-inexact form of a module name is specified\.
 .RE
 .SH STANDARD OPTIONS
 .P
- All standard options provide information only\.
+All standard options provide information only\.
 .RS 0
 .IP \(bu 2
 \fB\-h, \-\-help\fP
@@ -134,37 +134,37 @@ Opens this utility's home page in the system's default web browser\.
 .RE
 .SH NOTES
 .P
- On platforms with case\-sensitive filesystems you must specify case\-exact
+On platforms with case\-sensitive filesystems you must specify case\-exact
 .br
- package names, as Perl itself requires; for instance, 'data::dumper' will
+package names, as Perl itself requires; for instance, 'data::dumper' will
 .br
- not find the 'Data::Dumper' module\.
+not find the 'Data::Dumper' module\.
 .br
- On case\-insensitive filesystems, such as on Windows and OS X, you can get
+On case\-insensitive filesystems, such as on Windows and OS X, you can get
 .br
- away with specifying a case\-inexact package name, but a warning will be
+away with specifying a case\-inexact package name, but a warning will be
 .br
- issued\.
+issued\.
 .P
- Note that Perl's search path for modules (\fB@INC\fP) typically includes the
+Note that Perl's search path for modules (\fB@INC\fP) typically includes the
 .br
- current directory (\fB\|\.\fP), so you may get different results depending
+current directory (\fB\|\.\fP), so you may get different results depending
 .br
- on which directory \fBwhichpm\fP is called from\.
+on which directory \fBwhichpm\fP is called from\.
 .P
- When using \fB\-a\fP without module names in combination with \fB\-v\fP, the package
+When using \fB\-a\fP without module names in combination with \fB\-v\fP, the package
 .br
- names have to be extracted by custom\-parsing the module file, which may
+names have to be extracted by custom\-parsing the module file, which may
 .br
- not succeed in all cases \- package declarations may be missed, or false
+not succeed in all cases \- package declarations may be missed, or false
 .br
- positives may be found\.
+positives may be found\.
 .SH COMPATIBILITY
 .P
- Requires Perl v5\.4\.50 or higher; for core\-module status information,
+Requires Perl v5\.4\.50 or higher; for core\-module status information,
 .br
- v5\.8\.9 or higher is required\. 
- Expected to work on Unix\-like platforms and Windows\.
+v5\.8\.9 or higher is required\. 
+Expected to work on Unix\-like platforms and Windows\.
 .SH EXAMPLES
 .P
 .RS 2
@@ -176,7 +176,7 @@ whichpm \-v \-e Data::Dumper
 .RE
 .SH LICENSE
 .P
-  Copyright (c) 2015 Michael Klement (mklement0@gmail\.com), released under
+Copyright (c) 2015 Michael Klement (mklement0@gmail\.com), released under
 .br
-  the MIT license \fIhttps://spdx\.org/licenses/MIT\fR
+the MIT license \fIhttps://spdx\.org/licenses/MIT\fR
 

@@ -85,7 +85,7 @@ Find brief usage information below; for complete documentation, run `whichpm --m
 ```nohighlight
 $ whichpm --help
 
- Prints the filesystem paths of the specified Perl modules, if installed.
+Prints the filesystem paths of the specified Perl modules, if installed.
 
     whichpm    [-v] [-q] [-e] <module_name>...
     whichpm -a [-v] [-q] [-e] [<module_name>...]
@@ -96,7 +96,7 @@ $ whichpm --help
     -q ... suppresses warnings
     -e ... opens modules in default text editor
 
- Standard options: --help, --man, --version, --home
+Standard options: --help, --man, --version, --home
 ```
 
 <!-- DO NOT EDIT THE NEXT CHAPTER and RETAIN THIS COMMENT: The next chapter is updated by `make update-readme/release` with the contents of 'LICENSE.md'. ALSO, LEAVE AT LEAST 1 BLANK LINE AFTER THIS COMMENT. -->
@@ -120,7 +120,6 @@ This project gratefully depends on the following open-source components, accordi
 * [marked-man (D)](https://github.com/kapouer/marked-man#readme)
 * [replace (D)](https://github.com/harthur/replace)
 * [semver (D)](https://github.com/npm/node-semver#readme)
-* [tap (D)](https://github.com/isaacs/node-tap)
 * [urchin (D)](https://github.com/tlevine/urchin)
 
 <!-- DO NOT EDIT THE NEXT CHAPTER and RETAIN THIS COMMENT: The next chapter is updated by `make update-readme/release` with the contents of 'CHANGELOG.md'. ALSO, LEAVE AT LEAST 1 BLANK LINE AFTER THIS COMMENT. -->
@@ -130,6 +129,9 @@ This project gratefully depends on the following open-source components, accordi
 Versioning complies with [semantic versioning (semver)](http://semver.org/).
 
 <!-- NOTE: An entry template for a new version is automatically added each time `make version` is called. Fill in changes afterwards. -->
+
+* **[v0.1.5](https://github.com/mklement0/whichpm/compare/v0.1.4...v0.1.5)** (2015-09-15):
+  * [dev] Makefile improvements; various other behind-the-scenes tweaks.
 
 * **[v0.1.4](https://github.com/mklement0/whichpm/compare/v0.1.3...v0.1.4)** (2015-09-03):
   * [dev] Missing dev. dependency marked-man added.
