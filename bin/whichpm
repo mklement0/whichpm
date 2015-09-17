@@ -19,7 +19,7 @@ eval "use Module::CoreList";  # requires v5.8.9+
 
 my $kTHIS_NAME = basename $0;
 my $kTHIS_HOMEPAGE='https://github.com/mklement0/whichpm';
-my $kVERSION = 'v0.1.6'; # This line is automatically updated by `make version VER=<newVer>`
+my $kVERSION = 'v0.1.7'; # This line is automatically updated by `make version VER=<newVer>`
 # Convert $kVERSION into a backward-compatible float stored in `our $VERSION`.
 our $VERSION = sprintf '%s.%03s%03s', split(/\./, substr $kVERSION, 1);
 
@@ -784,8 +784,7 @@ lengthy, resource-intensive operation.
   Output format:  
    `<name>\t<version>\t<core-indicator>\t<path>`  
   On Unix platforms, pipe to `column -t` for column-aligned display.  
-  If the package name or version number cannot be determined, '?' is printed.  
-  &nbsp;    
+  If the package name or version number cannot be determined, `?` is printed.  
   `<core-indicator>` shows the following:  
 
     * If the module is a core module:  

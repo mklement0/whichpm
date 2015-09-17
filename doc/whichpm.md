@@ -56,8 +56,7 @@ lengthy, resource-intensive operation.
   Output format:  
    `<name>\t<version>\t<core-indicator>\t<path>`  
   On Unix platforms, pipe to `column -t` for column-aligned display.  
-  If the package name or version number cannot be determined, '?' is printed.  
-  &nbsp;    
+  If the package name or version number cannot be determined, `?` is printed.  
   `<core-indicator>` shows the following:  
 
     * If the module is a core module:  
