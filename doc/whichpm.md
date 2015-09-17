@@ -57,18 +57,22 @@ lengthy, resource-intensive operation.
    `<name>\t<version>\t<core-indicator>\t<path>`  
   On Unix platforms, pipe to `column -t` for column-aligned display.  
   If the package name or version number cannot be determined, '?' is printed.  
+  &nbsp;    
   `<core-indicator>` shows the following:  
-  If the module is a core module:  
-    Something like `core>=5.005`, which indicates what Perl version first  
-    included the module.  
-    To see a list of what Perl version included what version of the module,  
-    run `corelist -a <module_name>`.  
-  Otherwise: `(non-core)`  
-  If your Perl version is too old to support this check, or if the module  
-  name is unknown, you'll see `(n/a)`.
 
-* `-q, --quiet` suppresses warnings, such as module file's package name  
-  cannot be determined, or duplicate module files are found, or, on Windows  
+    * If the module is a core module:  
+      Something like `core>=5.005`, which indicates what Perl version first  
+      included the module.  
+      To see a list of what Perl version included what version of the module,  
+      run `corelist -a <module_name>`.
+
+    * Otherwise: `(non-core)`  
+    If your Perl version is too old to support this check, or if the module  
+    name couldn't be determined (when using `-a -v` without operands), you'll  
+    see `(n/a)`.
+
+* `-q, --quiet` suppresses warnings, such as when a module file's package name  
+  cannot be determined, duplicate module files are found, or, on Windows  
   or OSX, when a case-inexact form of a module name is specified.
 
 ## STANDARD OPTIONS
@@ -109,7 +113,7 @@ positives may be found.
 ## COMPATIBILITY
 
 Requires Perl v5.4.50 or higher; for core-module status information,  
-v5.8.9 or higher is required. 
+v5.8.9 or higher is required.  
 Expected to work on Unix-like platforms and Windows.
 
 ## EXAMPLES

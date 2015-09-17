@@ -1,8 +1,8 @@
 {
   "name": "whichpm",
-  "description": "Locates and reports information about installed Perl modules.",
+  "description": "CLI that Locates and reports information about installed Perl modules.",
   "private": false,
-  "version": "0.1.5",
+  "version": "0.1.6",
   "os": [
     "linux",
     "darwin",
@@ -30,7 +30,8 @@
     "locate",
     "path",
     "version",
-    "duplicates"
+    "duplicates",
+    "cli"
   ],
   "man": "./man/whichpm.1",
   "directories": {

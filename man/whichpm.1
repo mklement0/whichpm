@@ -1,4 +1,4 @@
-.TH "WHICHPM" "1" "September 2015" "v0.1.5" ""
+.TH "WHICHPM" "1" "September 2015" "v0.1.6" ""
 .SH "NAME"
 \fBwhichpm\fR \- locate installed Perl modules
 .SH SYNOPSIS
@@ -83,27 +83,34 @@ On Unix platforms, pipe to \fBcolumn \-t\fP for column\-aligned display\.
 .br
 If the package name or version number cannot be determined, '?' is printed\.
 .br
-\fB<core\-indicator>\fP shows the following:
+\~
 .br
+\fB<core\-indicator>\fP shows the following:  
+.RS 0
+.IP \(bu 2
 If the module is a core module:
 .br
-  Something like \fBcore>=5\.005\fP, which indicates what Perl version first
+Something like \fBcore>=5\.005\fP, which indicates what Perl version first
 .br
-  included the module\.
+included the module\.
 .br
-  To see a list of what Perl version included what version of the module,
+To see a list of what Perl version included what version of the module,
 .br
-  run \fBcorelist \-a <module_name>\fP\|\.
-.br
+run \fBcorelist \-a <module_name>\fP\|\.
+.IP \(bu 2
 Otherwise: \fB(non\-core)\fP
 .br
 If your Perl version is too old to support this check, or if the module
 .br
-name is unknown, you'll see \fB(n/a)\fP\|\.
-.IP \(bu 2
-\fB\-q, \-\-quiet\fP suppresses warnings, such as module file's package name
+name couldn't be determined (when using \fB\-a \-v\fP without operands), you'll
 .br
-cannot be determined, or duplicate module files are found, or, on Windows
+see \fB(n/a)\fP\|\.
+
+.RE
+.IP \(bu 2
+\fB\-q, \-\-quiet\fP suppresses warnings, such as when a module file's package name
+.br
+cannot be determined, duplicate module files are found, or, on Windows
 .br
 or OSX, when a case\-inexact form of a module name is specified\.
 
@@ -163,7 +170,8 @@ positives may be found\.
 .P
 Requires Perl v5\.4\.50 or higher; for core\-module status information,
 .br
-v5\.8\.9 or higher is required\. 
+v5\.8\.9 or higher is required\.
+.br
 Expected to work on Unix\-like platforms and Windows\.
 .SH EXAMPLES
 .P
