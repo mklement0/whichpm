@@ -9,7 +9,7 @@
 - [Examples](#examples)
 - [Installation](#installation)
   - [Installation from the npm registry](#installation-from-the-npm-registry)
-  - [Manual installation (OSX and Linux)](#manual-installation-osx-and-linux)
+  - [Manual installation (macOS and Linux)](#manual-installation-macos-and-linux)
 - [Usage](#usage)
 - [License](#license)
   - [Acknowledgements](#acknowledgements)
@@ -57,24 +57,26 @@ $ whichpm -a
 
 **Supported platforms and prerequisites**
 
-**Linux**, **OSX**, and **Windows**, with **Perl v5.4.50 or higher** installed.
+**Linux**, **macOS**, and **Windows**, with **Perl v5.4.50 or higher** installed.
 
 ## Installation from the npm registry
 
-With [Node.js](http://nodejs.org/) or [io.js](https://iojs.org/) installed, install [the package](https://www.npmjs.com/package/whichpm) as follows:
+<sup>Note: Even if you don't use Node.js, its package manager, `npm`, works across platforms and is easy to install with [`curl -L http://git.io/n-install | bash`](https://github.com/mklement0/n-install)</sup>
+
+With [Node.js](http://nodejs.org/)installed, install [the package](https://www.npmjs.com/package/whichpm) as follows:
 
     [sudo] npm install whichpm -g
 
 **Note**:
 
-* Whether you need `sudo` depends on how you installed Node.js / io.js and whether you've [changed permissions later](https://docs.npmjs.com/getting-started/fixing-npm-permissions); if you get an `EACCES` error, try again with `sudo`.
+* Whether you need `sudo` depends on how you installed Node.js and whether you've [changed permissions later](https://docs.npmjs.com/getting-started/fixing-npm-permissions); if you get an `EACCES` error, try again with `sudo`.
 * The `-g` ensures [_global_ installation](https://docs.npmjs.com/getting-started/installing-npm-packages-globally) and is needed to put `whichpm` in your system's `$PATH`.
 
-## Manual installation (OSX and Linux)
+## Manual installation (macOS and Linux)
 
 * Download [the CLI](https://raw.githubusercontent.com/mklement0/whichpm/stable/bin/whichpm) as `whichpm`.
 * Make it executable with `chmod +x whichpm`.
-* Move it or symlink it to a folder in your `$PATH`, such as `/usr/local/bin` (OSX) or `/usr/bin` (Linux).
+* Move it or symlink it to a folder in your `$PATH`, such as `/usr/local/bin` (macOS) or `/usr/bin` (Linux).
 
 # Usage
 
@@ -104,7 +106,7 @@ Standard options: --help, --man, --version, --home
 
 # License
 
-Copyright (c) 2015 Michael Klement <mklement0@gmail.com> (http://same2u.net), released under the [MIT license](https://spdx.org/licenses/MIT#licenseText).
+Copyright (c) 2020 Michael Klement <mklement0@gmail.com> (http://same2u.net), released under the [MIT license](https://spdx.org/licenses/MIT#licenseText).
 
 ## Acknowledgements
 
@@ -119,7 +121,7 @@ This project gratefully depends on the following open-source components, accordi
 * [doctoc (D)](https://github.com/thlorenz/doctoc)
 * [json (D)](https://github.com/trentm/json)
 * [marked-man (D)](https://github.com/kapouer/marked-man#readme)
-* [replace (D)](https://github.com/harthur/replace)
+* [replace (D)](https://github.com/ALMaclaine/replace#readme)
 * [semver (D)](https://github.com/npm/node-semver#readme)
 * [urchin (D)](https://github.com/tlevine/urchin)
 
@@ -130,6 +132,10 @@ This project gratefully depends on the following open-source components, accordi
 Versioning complies with [semantic versioning (semver)](http://semver.org/).
 
 <!-- NOTE: An entry template for a new version is automatically added each time `make version` is called. Fill in changes afterwards. -->
+
+* **[v0.1.8](https://github.com/mklement0/whichpm/compare/v0.1.7...v0.1.8)** (2020-01-14):
+  * [doc] Read-me improvements.
+  * [dev] Dev dependencies updated.
 
 * **[v0.1.7](https://github.com/mklement0/whichpm/compare/v0.1.6...v0.1.7)** (2015-09-16):
   * [doc] man page improvements.

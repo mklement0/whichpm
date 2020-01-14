@@ -2,7 +2,7 @@
   "name": "whichpm",
   "description": "CLI that Locates and reports information about installed Perl modules.",
   "private": false,
-  "version": "0.1.7",
+  "version": "0.1.8",
   "os": [
     "linux",
     "darwin",
@@ -50,7 +50,7 @@
     "doctoc": "^0.13.0",
     "json": "^9.0.3",
     "marked-man": "^0.1.5",
-    "replace": "^0.3.0",
+    "replace": "^1.1.5",
     "semver": "^4.2.0",
     "urchin": "^0.0.5"
   }
