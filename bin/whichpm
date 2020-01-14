@@ -19,7 +19,7 @@ eval "use Module::CoreList";  # requires v5.8.9+
 
 my $kTHIS_NAME = basename $0;
 my $kTHIS_HOMEPAGE='https://github.com/mklement0/whichpm';
-my $kVERSION = 'v0.1.8'; # This line is automatically updated by `make version VER=<newVer>`
+my $kVERSION = 'v0.2.0'; # This line is automatically updated by `make version VER=<newVer>`
 # Convert $kVERSION into a backward-compatible float stored in `our $VERSION`.
 our $VERSION = sprintf '%s.%03s%03s', split(/\./, substr $kVERSION, 1);
 
@@ -84,6 +84,7 @@ our $quiet; # package-level flag that is queried in mywarn()
 my $openineditor;
 my $all;
 my @modules;
+my @rawInc;
 my $modules_are_paths;
 my %reversed_inc;
 GetOptions(
@@ -93,6 +94,13 @@ GetOptions(
   "editor|edit|e"  => \$openineditor
 ) or mydiesyntax;
 
+# First, remove duplicates from @INC to prevent the same modules from
+# getting reported multiple times.
+@rawInc = @INC;
+@INC = unique(@INC);
+if (@INC ne @rawInc) {
+  mywarn "Your module search path, as reflected in \@INC and possibly prepended to via env. var. PERL5LIB / PERLLIB, contains duplicate entries.\nTo see the effective \@INC value, run: perl -e \"print join(\\\"\\n\\\", \@INC), \\\"\\n\\\"\"";
+}
 
 @modules = @ARGV;
 if (! @modules) {   # no module names specified

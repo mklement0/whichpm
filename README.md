@@ -133,6 +133,10 @@ Versioning complies with [semantic versioning (semver)](http://semver.org/).
 
 <!-- NOTE: An entry template for a new version is automatically added each time `make version` is called. Fill in changes afterwards. -->
 
+* **[v0.2.0](https://github.com/mklement0/whichpm/compare/v0.1.8...v0.2.0)** (2020-01-14):
+  * [enhancement] If duplicate module search paths are found in @INC, a warning is now issued (suppress with `-q`).
+    Technically, this is a breaking change in that previous callers may not anticipate the additional stderr output.
+
 * **[v0.1.8](https://github.com/mklement0/whichpm/compare/v0.1.7...v0.1.8)** (2020-01-14):
   * [doc] Read-me improvements.
   * [dev] Dev dependencies updated.
